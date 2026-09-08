@@ -1,0 +1,14 @@
+{
+  "name": "Ma to-do",
+  "short_name": "To-do",
+  "description": "Capture tes tâches à la voix, triées automatiquement.",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f7f8fa",
+  "theme_color": "#f7f8fa",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

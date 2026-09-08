@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#f7f8fa" />
+  <title>Ma to-do</title>
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="apple-touch-icon" href="icon.svg" />
+</head>
+<body>
+  <div class="wrap">
+    <header class="topbar">
+      <h1>Ma to-do</h1>
+      <span id="mode-badge" class="badge badge-cloud" title="Synchronisé en ligne">sync</span>
+    </header>
+
+    <!-- Carte de saisie -->
+    <section class="saisie-card">
+      <label class="field-label" for="saisie">Note ce qui te passe par la tête</label>
+      <textarea id="saisie" rows="3"
+        placeholder="Parle ou écris. Ex : « rappeler le comptable avant vendredi, et acheter un cadeau pour maman »"></textarea>
+      <div class="saisie-actions">
+        <button id="btn-dicter" class="btn-mic" type="button" aria-label="Dicter à voix haute" aria-pressed="false" title="Dicter à voix haute" hidden>
+          <svg class="ico-mic" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+            <path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3Z" fill="currentColor"/>
+            <path d="M5 11a1 1 0 0 1 2 0 5 5 0 0 0 10 0 1 1 0 1 1 2 0 7 7 0 0 1-6 6.93V21a1 1 0 1 1-2 0v-3.07A7 7 0 0 1 5 11Z" fill="currentColor"/>
+          </svg>
+        </button>
+        <button id="btn-ajouter" class="btn btn-primary">Ajouter</button>
+      </div>
+    </section>
+
+    <!-- To-do rangée -->
+    <section class="liste">
+      <div class="filtres">
+        <button class="chip is-active" data-filtre="tout">Tout</button>
+        <button class="chip" data-filtre="urgent">Urgent</button>
+        <button class="chip" data-filtre="a_valider">À vérifier</button>
+      </div>
+
+      <div id="groupes"></div>
+      <p id="liste-vide" class="vide" hidden>Rien pour l'instant. Note une première tâche au-dessus.</p>
+    </section>
+  </div>
+
+  <script src="app.js" type="module"></script>
+</body>
+</html>
