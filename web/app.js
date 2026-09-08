@@ -1,10 +1,8 @@
 // Application to-do.
-// Organisée en 3 couches remplaçables :
-//   - store      : persistance (Supabase — base en ligne, synchro iPhone + ordi)
-//   - triage     : découpage/tri du texte (ici heuristique locale ; deviendra Gemini)
-//   - ui         : rendu et interactions
-//
-// Le reste du code ne connaît que les interfaces store.* et triage.*.
+// Deux couches :
+//   - store : lecture/écriture des tâches dans Supabase (base en ligne, synchro iPhone + ordi)
+//   - ui    : rendu et interactions
+// L'ajout passe par la fonction serveur /api/capture (Gemini découpe et trie).
 
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from "./config.js";
 
@@ -16,30 +14,12 @@ const store = (() => {
     "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
     "Content-Type": "application/json",
   };
-  // Champs que la base gère elle-même : on ne les envoie pas.
-  const _payload = t => ({
-    titre: t.titre,
-    domaine: t.domaine,
-    urgence: t.urgence,
-    echeance: t.echeance || null,
-    statut: t.statut || "a_faire",
-    a_valider: t.a_valider !== false,
-  });
 
   return {
     async toutes() {
       const r = await fetch(`${REST}?select=*&order=date_creation.desc`, { headers });
       if (!r.ok) throw new Error("Lecture Supabase échouée : " + r.status);
       return r.json();
-    },
-    async ajouterPlusieurs(taches) {
-      if (!taches.length) return;
-      const r = await fetch(REST, {
-        method: "POST",
-        headers: { ...headers, "Prefer": "return=minimal" },
-        body: JSON.stringify(taches.map(_payload)),
-      });
-      if (!r.ok) throw new Error("Ajout Supabase échoué : " + r.status);
     },
     async modifier(id, champs) {
       const r = await fetch(`${REST}?id=eq.${encodeURIComponent(id)}`, {
@@ -59,107 +39,25 @@ const store = (() => {
   };
 })();
 
-/* ------------------------------ TRIAGE (local) ------------------------------ */
-// Placeholder sans IA : découpe le texte et devine domaine/urgence/échéance.
-// Sera remplacé par un appel à la fonction serveur « structurer » (Gemini).
-const triage = (() => {
-  const MOTS_PRO = ["client", "clients", "comptable", "réunion", "reunion", "boulot",
-    "boss", "collègue", "collegue", "facture", "devis", "projet", "email pro",
-    "manager", "rapport", "deadline", "livrable", "bureau"];
-  const MOTS_PERSO = ["maman", "papa", "famille", "cadeau", "courses", "médecin",
-    "medecin", "dentiste", "sport", "vacances", "maison", "ménage", "menage",
-    "anniversaire", "ami", "amie", "enfant"];
-  const MOTS_URGENT = ["urgent", "vite", "aujourd'hui", "ce soir", "ce matin",
-    "tout de suite", "asap", "avant ce soir", "demain matin"];
-
-  const JOURS = { "lundi":1,"mardi":2,"mercredi":3,"jeudi":4,"vendredi":5,"samedi":6,"dimanche":0 };
-
-  function _iso(d) {
-    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
-  }
-  function _devinerEcheance(txt) {
-    const t = txt.toLowerCase();
-    const maintenant = new Date();
-    if (/\baujourd'?hui\b|\bce soir\b|\bce matin\b/.test(t)) return _iso(maintenant);
-    if (/\bdemain\b/.test(t)) { const d = new Date(maintenant); d.setDate(d.getDate()+1); return _iso(d); }
-    if (/\bapr[eè]s-?demain\b/.test(t)) { const d = new Date(maintenant); d.setDate(d.getDate()+2); return _iso(d); }
-    for (const [nom, num] of Object.entries(JOURS)) {
-      if (new RegExp(`\\b(avant |ce |)${nom}\\b`).test(t)) {
-        const d = new Date(maintenant);
-        let delta = (num - d.getDay() + 7) % 7;
-        if (delta === 0) delta = 7;
-        d.setDate(d.getDate() + delta);
-        return _iso(d);
-      }
-    }
-    return null;
-  }
-  function _devinerDomaine(txt) {
-    const t = txt.toLowerCase();
-    const pro = MOTS_PRO.some(m => t.includes(m));
-    const perso = MOTS_PERSO.some(m => t.includes(m));
-    if (pro && !perso) return "pro";
-    if (perso && !pro) return "perso";
-    return "perso"; // défaut ; l'utilisateur corrige
-  }
-  function _devinerUrgence(txt) {
-    const t = txt.toLowerCase();
-    return MOTS_URGENT.some(m => t.includes(m)) ? "urgent" : "normal";
-  }
-  function _nettoyer(s) {
-    return s.replace(/^\s*(et |puis |aussi |penser [aà] |il faut |je dois |ne pas oublier de )/i, "")
-            .replace(/\s+/g, " ")
-            .replace(/^[\s,;.]+|[\s,;.]+$/g, "")
-            .trim();
-  }
-
-  return {
-    // Retourne une liste de propositions {titre, domaine, urgence, echeance}
-    async structurer(texteBrut) {
-      const morceaux = texteBrut
-        .split(/\n|[.;]|\bet\b(?=\s+(?:penser|acheter|appeler|rappeler|envoyer|faire|réserver|reserver|prendre))| puis /i)
-        .map(_nettoyer)
-        .filter(m => m.length > 2);
-      const source = morceaux.length ? morceaux : [_nettoyer(texteBrut)];
-      return source.map(m => ({
-        titre: m.charAt(0).toUpperCase() + m.slice(1),
-        domaine: _devinerDomaine(m),
-        urgence: _devinerUrgence(m),
-        echeance: _devinerEcheance(m),
-      }));
-    },
-  };
-})();
-
 /* ------------------------------ UI ------------------------------ */
 const $ = sel => document.querySelector(sel);
 const $$ = sel => Array.from(document.querySelectorAll(sel));
 
-function uid() {
-  return "t_" + Date.now().toString(36) + "_" + Math.floor(Math.random()*1e6).toString(36);
-}
-
-// --- Ajout direct : l'IA range en silence, on ajuste après ---
+// --- Ajout direct : l'IA (Gemini, côté serveur) range en silence, on ajuste après ---
 $("#btn-ajouter").addEventListener("click", async () => {
   const texte = $("#saisie").value.trim();
   if (!texte) return;
   const btn = $("#btn-ajouter");
+  const libelle = btn.textContent;
   btn.disabled = true;
+  btn.textContent = "Tri en cours…";
   try {
-    const props = await triage.structurer(texte);
-    const taches = props
-      .filter(p => p.titre && p.titre.trim())
-      .map(p => ({
-        id: uid(),
-        titre: p.titre.trim(),
-        domaine: p.domaine === "pro" ? "pro" : "perso",
-        urgence: p.urgence === "urgent" ? "urgent" : "normal",
-        echeance: p.echeance || null,
-        statut: "a_faire",
-        a_valider: true, // rangé automatiquement, à vérifier d'un coup d'œil
-        date_creation: new Date().toISOString(),
-      }));
-    if (taches.length) await store.ajouterPlusieurs(taches);
+    const r = await fetch("/api/capture", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ texte }),
+    });
+    if (!r.ok) throw new Error("capture HTTP " + r.status);
     $("#saisie").value = "";
     await rendreListe();
   } catch (e) {
@@ -167,6 +65,7 @@ $("#btn-ajouter").addEventListener("click", async () => {
     alert("Impossible d'enregistrer pour l'instant. Vérifie ta connexion et réessaie.");
   } finally {
     btn.disabled = false;
+    btn.textContent = libelle;
   }
 });
 
