@@ -191,6 +191,7 @@ module.exports = async (req, res) => {
   const cle = process.env.GEMINI_API_KEY;
   let taches, notes;
   let triePar = "gemini";
+  let erreurGemini = null;
   try {
     if (!cle) throw new Error("GEMINI_API_KEY manquante");
     ({ taches, notes } = await trierAvecGemini(texte, cle));
@@ -199,6 +200,7 @@ module.exports = async (req, res) => {
     // Repli : une seule tâche brute, pour ne rien perdre.
     console.error("Tri Gemini indisponible, repli brut :", e.message);
     triePar = "brut";
+    erreurGemini = e.message; // diagnostic temporaire, à retirer une fois le tri IA stabilisé
     taches = [normaliserTache({ titre: texte, domaine: "perso", urgence: "normal", echeance: null })];
     notes = [];
   }
@@ -208,7 +210,7 @@ module.exports = async (req, res) => {
       taches.length ? enregistrer(taches) : Promise.resolve([]),
       rangerNotes(notes),
     ]);
-    res.status(200).json({ triePar, taches: tachesCrees, carnets: carnetsTouches });
+    res.status(200).json({ triePar, taches: tachesCrees, carnets: carnetsTouches, erreurGemini });
   } catch (e) {
     console.error("Enregistrement échoué :", e.message);
     res.status(502).json({ erreur: "Enregistrement impossible", detail: e.message });
