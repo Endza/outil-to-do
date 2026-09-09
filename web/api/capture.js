@@ -49,7 +49,7 @@ async function trierAvecGemini(texte, cle) {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        system_instruction: { parts: [{ text: consigne }] },
+        systemInstruction: { parts: [{ text: consigne }] },
         contents: [{ parts: [{ text: texte }] }],
         generationConfig: { responseMimeType: "application/json", temperature: 0.2 },
       }),
