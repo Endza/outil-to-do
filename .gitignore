@@ -8,3 +8,5 @@ dist/
 
 # Divers
 *.log
+.vercel
+.env*

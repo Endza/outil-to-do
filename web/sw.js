@@ -1,7 +1,7 @@
 // Service worker — étape 1 : coquille hors-ligne.
 // Les gestionnaires push/notificationclick sont préparés pour la phase notifications (étape 8).
 
-const CACHE = "todo-shell-v2";
+const CACHE = "todo-shell-v3";
 const SHELL = [
   "./",
   "./index.html",
