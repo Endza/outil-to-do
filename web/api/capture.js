@@ -9,7 +9,7 @@ const SUPABASE_URL = "https://bphiuavmlhxxcicwbzpg.supabase.co";
 // Clé anon (publique par conception, protégée par les règles RLS).
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJwaGl1YXZtbGh4eGNpY3dienBnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg4NjI5MzcsImV4cCI6MjEwNDQzODkzN30.BAT9Mq7AlzLkvTzJbYH0FHjqvqCIOeuk8khn_u7BP7A";
 
-const GEMINI_MODEL = "gemini-3.6-flash";
+const GEMINI_MODEL = "gemini-3.6-flash"; // modèle actif (gemini-2.0-flash retiré)
 
 function dateParisAujourdhui() {
   // Date du jour au format YYYY-MM-DD dans le fuseau Europe/Paris.
