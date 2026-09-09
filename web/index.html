@@ -32,8 +32,13 @@
       </div>
     </section>
 
+    <nav class="onglets">
+      <button class="onglet is-active" data-vue="taches">À faire</button>
+      <button class="onglet" data-vue="notes">Notes</button>
+    </nav>
+
     <!-- To-do rangée -->
-    <section class="liste">
+    <section id="vue-taches" class="liste">
       <div class="filtres">
         <button class="chip is-active" data-filtre="tout">Tout</button>
         <button class="chip" data-filtre="urgent">Urgent</button>
@@ -42,6 +47,16 @@
 
       <div id="groupes"></div>
       <p id="liste-vide" class="vide" hidden>Rien pour l'instant. Note une première tâche au-dessus.</p>
+    </section>
+
+    <!-- Carnets (notes qu'on alimente au fil du temps) -->
+    <section id="vue-notes" class="liste" hidden>
+      <div class="filtres">
+        <button id="btn-nouveau-carnet" class="chip" type="button">+ Nouveau carnet</button>
+      </div>
+
+      <div id="carnets"></div>
+      <p id="carnets-vide" class="vide" hidden>Aucun carnet pour l'instant. Dicte « note ça dans… » ou crée-en un.</p>
     </section>
   </div>
 

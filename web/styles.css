@@ -187,6 +187,21 @@ textarea:focus { outline: 2px solid var(--ink); outline-offset: 1px; }
 .row-actions .btn-primary { flex: 2; }
 .row-actions .btn-ghost { flex: 1; }
 
+/* Onglets */
+.onglets { display: flex; gap: 8px; margin-bottom: 18px; }
+.onglet {
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font-size: 16px;
+  font-weight: 700;
+  font-family: inherit;
+  padding: 6px 2px;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+}
+.onglet.is-active { color: var(--ink); border-color: var(--ink); }
+
 /* Liste */
 .filtres { display: flex; gap: 8px; margin-bottom: 18px; }
 .chip {
@@ -270,6 +285,15 @@ textarea:focus { outline: 2px solid var(--ink); outline-offset: 1px; }
 .pill-valider { background: var(--valider-bg); color: var(--valider); }
 
 .vide { color: var(--muted); text-align: center; margin-top: 30px; font-size: 15px; }
+
+/* Carnets */
+.carnet-ligne { width: 100%; background: var(--surface); font: inherit; text-align: left; cursor: pointer; }
+.carnet-ligne:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.carnet-apercu { font-size: 13px; color: var(--muted); margin-top: 6px; line-height: 1.4; }
+.carte-edit textarea {
+  margin-bottom: 10px;
+  min-height: 120px;
+}
 
 @keyframes apparait {
   from { opacity: 0; transform: translateY(6px); }

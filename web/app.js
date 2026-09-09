@@ -39,6 +39,49 @@ const store = (() => {
   };
 })();
 
+/* ------------------------------ STORE Carnets (Supabase) ------------------------------ */
+const storeCarnets = (() => {
+  const REST = `${SUPABASE_URL}/rest/v1/carnets`;
+  const headers = {
+    "apikey": SUPABASE_ANON_KEY,
+    "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
+    "Content-Type": "application/json",
+  };
+
+  return {
+    async tous() {
+      const r = await fetch(`${REST}?select=*&order=date_maj.desc`, { headers });
+      if (!r.ok) throw new Error("Lecture Supabase échouée : " + r.status);
+      return r.json();
+    },
+    async creer(champs) {
+      const r = await fetch(REST, {
+        method: "POST",
+        headers: { ...headers, "Prefer": "return=representation" },
+        body: JSON.stringify({ titre: "", contenu: "", a_valider: false, ...champs }),
+      });
+      if (!r.ok) throw new Error("Création Supabase échouée : " + r.status);
+      const [cree] = await r.json();
+      return cree;
+    },
+    async modifier(id, champs) {
+      const r = await fetch(`${REST}?id=eq.${encodeURIComponent(id)}`, {
+        method: "PATCH",
+        headers: { ...headers, "Prefer": "return=minimal" },
+        body: JSON.stringify({ ...champs, date_maj: new Date().toISOString() }),
+      });
+      if (!r.ok) throw new Error("Modification Supabase échouée : " + r.status);
+    },
+    async supprimer(id) {
+      const r = await fetch(`${REST}?id=eq.${encodeURIComponent(id)}`, {
+        method: "DELETE",
+        headers,
+      });
+      if (!r.ok) throw new Error("Suppression Supabase échouée : " + r.status);
+    },
+  };
+})();
+
 /* ------------------------------ UI ------------------------------ */
 const $ = sel => document.querySelector(sel);
 const $$ = sel => Array.from(document.querySelectorAll(sel));
@@ -59,7 +102,7 @@ $("#btn-ajouter").addEventListener("click", async () => {
     });
     if (!r.ok) throw new Error("capture HTTP " + r.status);
     $("#saisie").value = "";
-    await rendreListe();
+    await Promise.all([rendreListe(), rendreCarnets()]);
   } catch (e) {
     console.error(e);
     alert("Impossible d'enregistrer pour l'instant. Vérifie ta connexion et réessaie.");
@@ -72,8 +115,8 @@ $("#btn-ajouter").addEventListener("click", async () => {
 // --- Liste ---
 let filtreCourant = "tout";
 let editionId = null; // id de la tâche en cours d'édition sur place
-$$(".chip").forEach(chip => chip.addEventListener("click", () => {
-  $$(".chip").forEach(c => c.classList.remove("is-active"));
+$$("#vue-taches .chip").forEach(chip => chip.addEventListener("click", () => {
+  $$("#vue-taches .chip").forEach(c => c.classList.remove("is-active"));
   chip.classList.add("is-active");
   filtreCourant = chip.dataset.filtre;
   rendreListe();
@@ -189,6 +232,86 @@ function editeurTache(t) {
   });
 
   // focus sur le titre à l'ouverture
+  setTimeout(() => el.querySelector('[data-champ="titre"]').focus(), 0);
+  return el;
+}
+
+/* ------------------------------ Onglets (À faire / Notes) ------------------------------ */
+$$(".onglet").forEach(o => o.addEventListener("click", () => {
+  $$(".onglet").forEach(x => x.classList.remove("is-active"));
+  o.classList.add("is-active");
+  $("#vue-taches").hidden = o.dataset.vue !== "taches";
+  $("#vue-notes").hidden = o.dataset.vue !== "notes";
+  if (o.dataset.vue === "notes") rendreCarnets();
+}));
+
+/* ------------------------------ Carnets ------------------------------ */
+let editionCarnetId = null;
+
+$("#btn-nouveau-carnet").addEventListener("click", async () => {
+  const cree = await storeCarnets.creer({ titre: "", contenu: "" });
+  editionCarnetId = cree.id;
+  rendreCarnets();
+});
+
+async function rendreCarnets() {
+  let carnets;
+  try {
+    carnets = await storeCarnets.tous();
+  } catch (e) {
+    console.error(e);
+    $("#carnets").innerHTML = "";
+    const vide = $("#carnets-vide");
+    vide.hidden = false;
+    vide.textContent = "Connexion à la base impossible. Vérifie ta connexion internet et recharge.";
+    return;
+  }
+  $("#carnets-vide").textContent = "Aucun carnet pour l'instant. Dicte « note ça dans… » ou crée-en un.";
+  const conteneur = $("#carnets");
+  conteneur.innerHTML = "";
+  carnets.forEach(c => conteneur.appendChild(c.id === editionCarnetId ? editeurCarnet(c) : ligneCarnet(c)));
+  $("#carnets-vide").hidden = carnets.length > 0;
+}
+
+function ligneCarnet(c) {
+  const el = document.createElement("button");
+  el.type = "button";
+  el.className = "tache carnet-ligne";
+  const apercu = (c.contenu || "").slice(0, 90);
+  el.innerHTML = `
+    <div class="tache-corps">
+      <div class="tache-titre">${escapeHtml(c.titre || "Note sans titre")}</div>
+      <div class="tache-meta">
+        ${c.a_valider ? '<span class="pill pill-valider">À vérifier</span>' : ''}
+      </div>
+      ${apercu ? `<div class="carnet-apercu">${escapeHtml(apercu)}${(c.contenu||"").length > 90 ? "…" : ""}</div>` : ''}
+    </div>`;
+  el.addEventListener("click", () => { editionCarnetId = c.id; rendreCarnets(); });
+  return el;
+}
+
+function editeurCarnet(c) {
+  const el = document.createElement("div");
+  el.className = "carte carte-edit";
+  el.innerHTML = `
+    <input type="text" value="${escapeAttr(c.titre)}" placeholder="Nom du carnet" data-champ="titre" aria-label="Nom du carnet" />
+    <textarea rows="6" data-champ="contenu" aria-label="Contenu">${escapeHtml(c.contenu || "")}</textarea>
+    <div class="row-actions">
+      <button type="button" class="btn btn-danger" data-action="supprimer">Supprimer</button>
+      <button type="button" class="btn btn-primary" data-action="ok">OK</button>
+    </div>`;
+
+  const maj = champs => storeCarnets.modifier(c.id, { ...champs, a_valider: false });
+
+  el.querySelector('[data-champ="titre"]').addEventListener("input", e => maj({ titre: e.target.value }));
+  el.querySelector('[data-champ="contenu"]').addEventListener("input", e => maj({ contenu: e.target.value }));
+  el.querySelector('[data-action="ok"]').addEventListener("click", () => { editionCarnetId = null; rendreCarnets(); });
+  el.querySelector('[data-action="supprimer"]').addEventListener("click", async () => {
+    await storeCarnets.supprimer(c.id);
+    editionCarnetId = null;
+    rendreCarnets();
+  });
+
   setTimeout(() => el.querySelector('[data-champ="titre"]').focus(), 0);
   return el;
 }
