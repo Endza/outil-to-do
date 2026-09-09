@@ -134,13 +134,8 @@ $("#btn-ajouter").addEventListener("click", async () => {
       body: JSON.stringify({ texte }),
     });
     if (!r.ok) throw new Error("capture HTTP " + r.status);
-    const resultat = await r.json();
     $("#saisie").value = "";
     await Promise.all([rendreListe(), rendreCarnets()]);
-    // Diagnostic temporaire : affiche l'erreur si le tri IA a échoué (repli brut).
-    if (resultat.triePar === "brut") {
-      alert("Tri IA indisponible (repli brut) :\n" + (resultat.erreurGemini || "raison inconnue"));
-    }
   } catch (e) {
     console.error(e);
     alert("Impossible d'enregistrer pour l'instant. Vérifie ta connexion et réessaie.");
