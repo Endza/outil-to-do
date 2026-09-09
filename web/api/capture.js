@@ -194,11 +194,22 @@ module.exports = async (req, res) => {
   let erreurGemini = null;
   try {
     if (!cle) throw new Error("GEMINI_API_KEY manquante");
-    ({ taches, notes } = await trierAvecGemini(texte, cle));
-    if (!taches.length && !notes.length) throw new Error("Rien d'extrait");
+    let derniereErreur;
+    for (let essai = 1; essai <= 2; essai++) {
+      try {
+        ({ taches, notes } = await trierAvecGemini(texte, cle));
+        if (!taches.length && !notes.length) throw new Error("Rien d'extrait");
+        derniereErreur = null;
+        break;
+      } catch (e) {
+        derniereErreur = e;
+        if (essai < 2) await new Promise(r => setTimeout(r, 1000));
+      }
+    }
+    if (derniereErreur) throw derniereErreur;
   } catch (e) {
     // Repli : une seule tâche brute, pour ne rien perdre.
-    console.error("Tri Gemini indisponible, repli brut :", e.message);
+    console.error("Tri Gemini indisponible (après nouvelle tentative), repli brut :", e.message);
     triePar = "brut";
     erreurGemini = e.message; // diagnostic temporaire, à retirer une fois le tri IA stabilisé
     taches = [normaliserTache({ titre: texte, domaine: "perso", urgence: "normal", echeance: null })];
