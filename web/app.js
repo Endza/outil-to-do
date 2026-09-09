@@ -82,6 +82,39 @@ const storeCarnets = (() => {
   };
 })();
 
+/* ------------------------------ STORE Paramètres (Supabase) ------------------------------ */
+const storeParametres = (() => {
+  const REST = `${SUPABASE_URL}/rest/v1/parametres`;
+  const headers = {
+    "apikey": SUPABASE_ANON_KEY,
+    "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
+    "Content-Type": "application/json",
+  };
+
+  return {
+    async hashMdp() {
+      const r = await fetch(`${REST}?id=eq.app&select=mot_de_passe_hash`, { headers });
+      if (!r.ok) throw new Error("Lecture Supabase échouée : " + r.status);
+      const [ligne] = await r.json();
+      return ligne ? ligne.mot_de_passe_hash : null;
+    },
+    async definirHashMdp(hash) {
+      const r = await fetch(`${REST}?on_conflict=id`, {
+        method: "POST",
+        headers: { ...headers, "Prefer": "resolution=merge-duplicates" },
+        body: JSON.stringify({ id: "app", mot_de_passe_hash: hash, date_maj: new Date().toISOString() }),
+      });
+      if (!r.ok) throw new Error("Écriture Supabase échouée : " + r.status);
+    },
+  };
+})();
+
+async function hasher(texte) {
+  const donnees = new TextEncoder().encode(texte);
+  const empreinte = await crypto.subtle.digest("SHA-256", donnees);
+  return Array.from(new Uint8Array(empreinte)).map(o => o.toString(16).padStart(2, "0")).join("");
+}
+
 /* ------------------------------ UI ------------------------------ */
 const $ = sel => document.querySelector(sel);
 const $$ = sel => Array.from(document.querySelectorAll(sel));
@@ -247,6 +280,30 @@ $$(".onglet").forEach(o => o.addEventListener("click", () => {
 
 /* ------------------------------ Carnets ------------------------------ */
 let editionCarnetId = null;
+const carnetsDeverrouilles = new Set(); // déverrouillés pour la session en cours (jusqu'à fermeture de l'app)
+let hashMdpCache; // undefined = pas encore lu, null = aucun mot de passe défini
+
+async function obtenirHashMdp() {
+  if (hashMdpCache === undefined) hashMdpCache = await storeParametres.hashMdp();
+  return hashMdpCache;
+}
+
+// Demande un nouveau mot de passe (deux fois, pour confirmation) et l'enregistre.
+// Retourne true si un mot de passe a bien été défini.
+async function definirNouveauMdp() {
+  const mdp = prompt("Choisis un mot de passe pour verrouiller tes carnets :");
+  if (!mdp) return false;
+  const confirmation = prompt("Confirme le mot de passe :");
+  if (confirmation !== mdp) { alert("Les deux mots de passe ne correspondent pas."); return false; }
+  const hash = await hasher(mdp);
+  await storeParametres.definirHashMdp(hash);
+  hashMdpCache = hash;
+  return true;
+}
+
+$("#btn-mdp-carnets").addEventListener("click", async () => {
+  await definirNouveauMdp();
+});
 
 $("#btn-nouveau-carnet").addEventListener("click", async () => {
   const cree = await storeCarnets.creer({ titre: "", contenu: "" });
@@ -277,10 +334,21 @@ function ligneCarnet(c) {
   const el = document.createElement("button");
   el.type = "button";
   el.className = "tache carnet-ligne";
+
+  const verrouille = c.verrouille && !carnetsDeverrouilles.has(c.id);
+  if (verrouille) {
+    el.innerHTML = `
+      <div class="tache-corps">
+        <div class="tache-titre">🔒 Carnet verrouillé</div>
+      </div>`;
+    el.addEventListener("click", () => deverrouillerCarnet(c));
+    return el;
+  }
+
   const apercu = (c.contenu || "").slice(0, 90);
   el.innerHTML = `
     <div class="tache-corps">
-      <div class="tache-titre">${escapeHtml(c.titre || "Note sans titre")}</div>
+      <div class="tache-titre">${c.verrouille ? "🔒 " : ""}${escapeHtml(c.titre || "Note sans titre")}</div>
       <div class="tache-meta">
         ${c.a_valider ? '<span class="pill pill-valider">À vérifier</span>' : ''}
       </div>
@@ -290,6 +358,16 @@ function ligneCarnet(c) {
   return el;
 }
 
+async function deverrouillerCarnet(c) {
+  const mdp = prompt("Mot de passe pour déverrouiller ce carnet :");
+  if (!mdp) return;
+  const hash = await obtenirHashMdp();
+  if (!hash || (await hasher(mdp)) !== hash) { alert("Mot de passe incorrect."); return; }
+  carnetsDeverrouilles.add(c.id);
+  editionCarnetId = c.id;
+  rendreCarnets();
+}
+
 function editeurCarnet(c) {
   const el = document.createElement("div");
   el.className = "carte carte-edit";
@@ -297,6 +375,7 @@ function editeurCarnet(c) {
     <input type="text" value="${escapeAttr(c.titre)}" placeholder="Nom du carnet" data-champ="titre" aria-label="Nom du carnet" />
     <textarea rows="6" data-champ="contenu" aria-label="Contenu">${escapeHtml(c.contenu || "")}</textarea>
     <div class="row-actions">
+      <button type="button" class="btn btn-ghost" data-action="verrou">${c.verrouille ? "🔒 Verrouillé" : "🔓 Non verrouillé"}</button>
       <button type="button" class="btn btn-danger" data-action="supprimer">Supprimer</button>
       <button type="button" class="btn btn-primary" data-action="ok">OK</button>
     </div>`;
@@ -305,6 +384,19 @@ function editeurCarnet(c) {
 
   el.querySelector('[data-champ="titre"]').addEventListener("input", e => maj({ titre: e.target.value }));
   el.querySelector('[data-champ="contenu"]').addEventListener("input", e => maj({ contenu: e.target.value }));
+  el.querySelector('[data-action="verrou"]').addEventListener("click", async () => {
+    if (!c.verrouille) {
+      const hash = await obtenirHashMdp();
+      if (!hash && !(await definirNouveauMdp())) return; // pas de mot de passe défini, abandon
+      c.verrouille = true;
+      carnetsDeverrouilles.add(c.id); // reste ouvert pour la session en cours
+    } else {
+      c.verrouille = false;
+    }
+    await storeCarnets.modifier(c.id, { verrouille: c.verrouille });
+    editionCarnetId = c.id;
+    rendreCarnets();
+  });
   el.querySelector('[data-action="ok"]').addEventListener("click", () => { editionCarnetId = null; rendreCarnets(); });
   el.querySelector('[data-action="supprimer"]').addEventListener("click", async () => {
     await storeCarnets.supprimer(c.id);
