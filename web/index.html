@@ -61,6 +61,17 @@
     </section>
   </div>
 
+  <!-- Page plein écran : lecture/édition d'un carnet -->
+  <section id="vue-carnet-detail" class="carnet-detail" hidden>
+    <div class="detail-topbar">
+      <button id="btn-retour-carnet" class="btn-icone" type="button" aria-label="Retour à la liste">‹ Retour</button>
+      <button id="btn-verrou-detail" class="btn-icone" type="button" aria-label="Verrouiller ce carnet">🔓</button>
+    </div>
+    <input type="text" id="detail-titre" class="detail-titre" placeholder="Titre" aria-label="Titre du carnet" />
+    <textarea id="detail-contenu" class="detail-contenu" placeholder="Écris ta note ici…" aria-label="Contenu"></textarea>
+    <button id="btn-supprimer-carnet" class="lien-supprimer" type="button">Supprimer cette note</button>
+  </section>
+
   <script src="app.js" type="module"></script>
 </body>
 </html>
