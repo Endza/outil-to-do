@@ -273,15 +273,17 @@ function editeurTache(t) {
 $$(".onglet").forEach(o => o.addEventListener("click", () => {
   $$(".onglet").forEach(x => x.classList.remove("is-active"));
   o.classList.add("is-active");
+  carnetOuvert = null;
+  $("#vue-carnet-detail").hidden = true;
   $("#vue-taches").hidden = o.dataset.vue !== "taches";
   $("#vue-notes").hidden = o.dataset.vue !== "notes";
   if (o.dataset.vue === "notes") rendreCarnets();
 }));
 
 /* ------------------------------ Carnets ------------------------------ */
-let editionCarnetId = null;
 const carnetsDeverrouilles = new Set(); // déverrouillés pour la session en cours (jusqu'à fermeture de l'app)
 let hashMdpCache; // undefined = pas encore lu, null = aucun mot de passe défini
+let carnetOuvert = null; // carnet actuellement affiché en plein écran
 
 async function obtenirHashMdp() {
   if (hashMdpCache === undefined) hashMdpCache = await storeParametres.hashMdp();
@@ -307,8 +309,7 @@ $("#btn-mdp-carnets").addEventListener("click", async () => {
 
 $("#btn-nouveau-carnet").addEventListener("click", async () => {
   const cree = await storeCarnets.creer({ titre: "", contenu: "" });
-  editionCarnetId = cree.id;
-  rendreCarnets();
+  ouvrirDetailCarnet(cree);
 });
 
 async function rendreCarnets() {
@@ -326,7 +327,7 @@ async function rendreCarnets() {
   $("#carnets-vide").textContent = "Aucun carnet pour l'instant. Dicte « note ça dans… » ou crée-en un.";
   const conteneur = $("#carnets");
   conteneur.innerHTML = "";
-  carnets.forEach(c => conteneur.appendChild(c.id === editionCarnetId ? editeurCarnet(c) : ligneCarnet(c)));
+  carnets.forEach(c => conteneur.appendChild(ligneCarnet(c)));
   $("#carnets-vide").hidden = carnets.length > 0;
 }
 
@@ -339,7 +340,7 @@ function ligneCarnet(c) {
   if (verrouille) {
     el.innerHTML = `
       <div class="tache-corps">
-        <div class="tache-titre">🔒 Carnet verrouillé</div>
+        <div class="tache-titre">🔒 ${escapeHtml(c.titre || "Note sans titre")}</div>
       </div>`;
     el.addEventListener("click", () => deverrouillerCarnet(c));
     return el;
@@ -354,7 +355,7 @@ function ligneCarnet(c) {
       </div>
       ${apercu ? `<div class="carnet-apercu">${escapeHtml(apercu)}${(c.contenu||"").length > 90 ? "…" : ""}</div>` : ''}
     </div>`;
-  el.addEventListener("click", () => { editionCarnetId = c.id; rendreCarnets(); });
+  el.addEventListener("click", () => ouvrirDetailCarnet(c));
   return el;
 }
 
@@ -364,49 +365,55 @@ async function deverrouillerCarnet(c) {
   const hash = await obtenirHashMdp();
   if (!hash || (await hasher(mdp)) !== hash) { alert("Mot de passe incorrect."); return; }
   carnetsDeverrouilles.add(c.id);
-  editionCarnetId = c.id;
+  ouvrirDetailCarnet(c);
+}
+
+/* ------------------------------ Page plein écran d'un carnet ------------------------------ */
+function majBoutonVerrouDetail() {
+  $("#btn-verrou-detail").textContent = carnetOuvert.verrouille ? "🔒" : "🔓";
+}
+
+function ouvrirDetailCarnet(c) {
+  carnetOuvert = c;
+  $("#detail-titre").value = c.titre || "";
+  $("#detail-contenu").value = c.contenu || "";
+  majBoutonVerrouDetail();
+  $("#vue-notes").hidden = true;
+  $("#vue-carnet-detail").hidden = false;
+  setTimeout(() => $("#detail-titre").focus(), 0);
+}
+
+function fermerDetailCarnet() {
+  carnetOuvert = null;
+  $("#vue-carnet-detail").hidden = true;
+  $("#vue-notes").hidden = false;
   rendreCarnets();
 }
 
-function editeurCarnet(c) {
-  const el = document.createElement("div");
-  el.className = "carte carte-edit";
-  el.innerHTML = `
-    <input type="text" value="${escapeAttr(c.titre)}" placeholder="Nom du carnet" data-champ="titre" aria-label="Nom du carnet" />
-    <textarea rows="6" data-champ="contenu" aria-label="Contenu">${escapeHtml(c.contenu || "")}</textarea>
-    <div class="row-actions">
-      <button type="button" class="btn btn-ghost" data-action="verrou">${c.verrouille ? "🔒 Verrouillé" : "🔓 Non verrouillé"}</button>
-      <button type="button" class="btn btn-danger" data-action="supprimer">Supprimer</button>
-      <button type="button" class="btn btn-primary" data-action="ok">OK</button>
-    </div>`;
+const majCarnetOuvert = champs => storeCarnets.modifier(carnetOuvert.id, { ...champs, a_valider: false });
 
-  const maj = champs => storeCarnets.modifier(c.id, { ...champs, a_valider: false });
+$("#detail-titre").addEventListener("input", e => majCarnetOuvert({ titre: e.target.value }));
+$("#detail-contenu").addEventListener("input", e => majCarnetOuvert({ contenu: e.target.value }));
 
-  el.querySelector('[data-champ="titre"]').addEventListener("input", e => maj({ titre: e.target.value }));
-  el.querySelector('[data-champ="contenu"]').addEventListener("input", e => maj({ contenu: e.target.value }));
-  el.querySelector('[data-action="verrou"]').addEventListener("click", async () => {
-    if (!c.verrouille) {
-      const hash = await obtenirHashMdp();
-      if (!hash && !(await definirNouveauMdp())) return; // pas de mot de passe défini, abandon
-      c.verrouille = true;
-      carnetsDeverrouilles.add(c.id); // reste ouvert pour la session en cours
-    } else {
-      c.verrouille = false;
-    }
-    await storeCarnets.modifier(c.id, { verrouille: c.verrouille });
-    editionCarnetId = c.id;
-    rendreCarnets();
-  });
-  el.querySelector('[data-action="ok"]').addEventListener("click", () => { editionCarnetId = null; rendreCarnets(); });
-  el.querySelector('[data-action="supprimer"]').addEventListener("click", async () => {
-    await storeCarnets.supprimer(c.id);
-    editionCarnetId = null;
-    rendreCarnets();
-  });
+$("#btn-retour-carnet").addEventListener("click", fermerDetailCarnet);
 
-  setTimeout(() => el.querySelector('[data-champ="titre"]').focus(), 0);
-  return el;
-}
+$("#btn-verrou-detail").addEventListener("click", async () => {
+  if (!carnetOuvert.verrouille) {
+    const hash = await obtenirHashMdp();
+    if (!hash && !(await definirNouveauMdp())) return; // pas de mot de passe défini, abandon
+    carnetOuvert.verrouille = true;
+    carnetsDeverrouilles.add(carnetOuvert.id); // reste ouvert pour la session en cours
+  } else {
+    carnetOuvert.verrouille = false;
+  }
+  await storeCarnets.modifier(carnetOuvert.id, { verrouille: carnetOuvert.verrouille });
+  majBoutonVerrouDetail();
+});
+
+$("#btn-supprimer-carnet").addEventListener("click", async () => {
+  await storeCarnets.supprimer(carnetOuvert.id);
+  fermerDetailCarnet();
+});
 
 /* ------------------------------ utilitaires ------------------------------ */
 function escapeHtml(s) {
