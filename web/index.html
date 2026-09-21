@@ -53,7 +53,7 @@
     <section id="vue-notes" class="liste" hidden>
       <div class="filtres">
         <button id="btn-nouveau-carnet" class="chip" type="button">+ Nouveau carnet</button>
-        <button id="btn-mdp-carnets" class="chip" type="button">🔒 Mot de passe</button>
+        <button id="btn-mdp-carnets" class="chip" type="button">🔒 Code</button>
       </div>
 
       <div id="carnets"></div>
@@ -71,6 +71,19 @@
     <textarea id="detail-contenu" class="detail-contenu" placeholder="Écris ta note ici…" aria-label="Contenu"></textarea>
     <button id="btn-supprimer-carnet" class="lien-supprimer" type="button">Supprimer cette note</button>
   </section>
+
+  <!-- Boîte de dialogue : saisie d'un code PIN (verrouillage des carnets) -->
+  <div id="modal-pin" class="modal-fond" hidden>
+    <div class="modal-carte">
+      <p id="modal-pin-titre" class="modal-titre"></p>
+      <input type="tel" id="modal-pin-champ" class="modal-pin-champ" inputmode="numeric" pattern="[0-9]*"
+        autocomplete="off" aria-label="Code" />
+      <div class="row-actions">
+        <button type="button" id="modal-pin-annuler" class="btn btn-ghost">Annuler</button>
+        <button type="button" id="modal-pin-ok" class="btn btn-primary">OK</button>
+      </div>
+    </div>
+  </div>
 
   <script src="app.js" type="module"></script>
 </body>

@@ -280,6 +280,32 @@ $$(".onglet").forEach(o => o.addEventListener("click", () => {
   if (o.dataset.vue === "notes") rendreCarnets();
 }));
 
+/* ------------------------------ Boîte de dialogue : code PIN ------------------------------ */
+// Affiche la modale avec clavier numérique et résout avec le code saisi (ou null si annulé).
+let resolvePin = null;
+function demanderPin(titre) {
+  return new Promise(resolve => {
+    resolvePin = resolve;
+    $("#modal-pin-titre").textContent = titre;
+    const champ = $("#modal-pin-champ");
+    champ.value = "";
+    $("#modal-pin").hidden = false;
+    setTimeout(() => champ.focus(), 0);
+  });
+}
+function fermerModalPin(valeur) {
+  $("#modal-pin").hidden = true;
+  if (resolvePin) { resolvePin(valeur); resolvePin = null; }
+}
+$("#modal-pin-champ").addEventListener("input", e => {
+  e.target.value = e.target.value.replace(/\D/g, ""); // chiffres uniquement
+});
+$("#modal-pin-champ").addEventListener("keydown", e => {
+  if (e.key === "Enter") fermerModalPin($("#modal-pin-champ").value || null);
+});
+$("#modal-pin-ok").addEventListener("click", () => fermerModalPin($("#modal-pin-champ").value || null));
+$("#modal-pin-annuler").addEventListener("click", () => fermerModalPin(null));
+
 /* ------------------------------ Carnets ------------------------------ */
 const carnetsDeverrouilles = new Set(); // déverrouillés pour la session en cours (jusqu'à fermeture de l'app)
 let hashMdpCache; // undefined = pas encore lu, null = aucun mot de passe défini
@@ -290,14 +316,14 @@ async function obtenirHashMdp() {
   return hashMdpCache;
 }
 
-// Demande un nouveau mot de passe (deux fois, pour confirmation) et l'enregistre.
-// Retourne true si un mot de passe a bien été défini.
+// Demande un nouveau code (deux fois, pour confirmation) et l'enregistre.
+// Retourne true si un code a bien été défini.
 async function definirNouveauMdp() {
-  const mdp = prompt("Choisis un mot de passe pour verrouiller tes carnets :");
-  if (!mdp) return false;
-  const confirmation = prompt("Confirme le mot de passe :");
-  if (confirmation !== mdp) { alert("Les deux mots de passe ne correspondent pas."); return false; }
-  const hash = await hasher(mdp);
+  const code = await demanderPin("Choisis un code pour verrouiller tes carnets");
+  if (!code) return false;
+  const confirmation = await demanderPin("Confirme le code");
+  if (confirmation !== code) { alert("Les deux codes ne correspondent pas."); return false; }
+  const hash = await hasher(code);
   await storeParametres.definirHashMdp(hash);
   hashMdpCache = hash;
   return true;
@@ -360,10 +386,10 @@ function ligneCarnet(c) {
 }
 
 async function deverrouillerCarnet(c) {
-  const mdp = prompt("Mot de passe pour déverrouiller ce carnet :");
-  if (!mdp) return;
+  const code = await demanderPin("Code pour déverrouiller ce carnet");
+  if (!code) return;
   const hash = await obtenirHashMdp();
-  if (!hash || (await hasher(mdp)) !== hash) { alert("Mot de passe incorrect."); return; }
+  if (!hash || (await hasher(code)) !== hash) { alert("Code incorrect."); return; }
   carnetsDeverrouilles.add(c.id);
   ouvrirDetailCarnet(c);
 }
