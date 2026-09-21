@@ -4,7 +4,7 @@
 //   - ui    : rendu et interactions
 // L'ajout passe par la fonction serveur /api/capture (Gemini découpe et trie).
 
-import { SUPABASE_URL, SUPABASE_ANON_KEY } from "./config.js";
+import { SUPABASE_URL, SUPABASE_ANON_KEY, VAPID_PUBLIC_KEY } from "./config.js";
 
 /* ------------------------------ STORE (Supabase) ------------------------------ */
 const store = (() => {
@@ -506,3 +506,75 @@ rendreListe();
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register("sw.js").catch(() => {});
 }
+
+/* ------------------------------ RAPPELS (notifications push) ------------------------------ */
+(() => {
+  const btn = $("#btn-rappels");
+  if (!("serviceWorker" in navigator) || !("PushManager" in window) || !btn) return; // non supporté
+  btn.hidden = false;
+
+  function b64UrlVersUint8(base64url) {
+    const base64 = (base64url + "===".slice((base64url.length + 3) % 4)).replace(/-/g, "+").replace(/_/g, "/");
+    const brut = atob(base64);
+    return Uint8Array.from([...brut].map(c => c.charCodeAt(0)));
+  }
+
+  const REST = `${SUPABASE_URL}/rest/v1/abonnements_push`;
+  const headersSupabase = {
+    apikey: SUPABASE_ANON_KEY,
+    Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+    "Content-Type": "application/json",
+  };
+
+  async function enregistrerAbonnement(sub) {
+    const { endpoint, keys } = sub.toJSON();
+    await fetch(`${REST}?on_conflict=endpoint`, {
+      method: "POST",
+      headers: { ...headersSupabase, Prefer: "resolution=merge-duplicates" },
+      body: JSON.stringify({ endpoint, p256dh: keys.p256dh, auth: keys.auth }),
+    });
+  }
+
+  async function oublierAbonnement(endpoint) {
+    await fetch(`${REST}?endpoint=eq.${encodeURIComponent(endpoint)}`, { method: "DELETE", headers: headersSupabase });
+  }
+
+  function majBouton(actif) {
+    btn.textContent = actif ? "🔔" : "🔕";
+    btn.title = actif ? "Désactiver les rappels" : "Activer les rappels";
+  }
+
+  navigator.serviceWorker.ready.then(async reg => {
+    const sub = await reg.pushManager.getSubscription();
+    majBouton(!!sub);
+  });
+
+  btn.addEventListener("click", async () => {
+    const reg = await navigator.serviceWorker.ready;
+    const abonnementActuel = await reg.pushManager.getSubscription();
+
+    if (abonnementActuel) {
+      await oublierAbonnement(abonnementActuel.endpoint);
+      await abonnementActuel.unsubscribe();
+      majBouton(false);
+      return;
+    }
+
+    const permission = await Notification.requestPermission();
+    if (permission !== "granted") {
+      alert("Les rappels ont besoin de l'autorisation de notifications pour fonctionner.");
+      return;
+    }
+    try {
+      const sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: b64UrlVersUint8(VAPID_PUBLIC_KEY),
+      });
+      await enregistrerAbonnement(sub);
+      majBouton(true);
+    } catch (e) {
+      console.error(e);
+      alert("Impossible d'activer les rappels sur cet appareil.");
+    }
+  });
+})();

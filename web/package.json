@@ -1,0 +1,7 @@
+{
+  "name": "outil-to-do",
+  "private": true,
+  "dependencies": {
+    "web-push": "^3.6.7"
+  }
+}
