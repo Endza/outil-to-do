@@ -1,6 +1,6 @@
-// Fonction serverless (Vercel Cron) — envoie un rappel (notification push) une fois par jour
-// pour chaque tâche à faire dont l'échéance est aujourd'hui, à chaque appareil abonné.
-// Chaque tâche n'est notifiée qu'une seule fois (colonne "notifie").
+// Fonction serverless (Vercel Cron, déclenchée chaque heure) — envoie un rappel (notification
+// push) à l'heure choisie dans l'app, pour chaque tâche à faire dont l'échéance est aujourd'hui,
+// à chaque appareil abonné. Chaque tâche n'est notifiée qu'une seule fois (colonne "notifie").
 
 const webpush = require("web-push");
 
@@ -12,6 +12,11 @@ function dateParisAujourdhui() {
     timeZone: "Europe/Paris", year: "numeric", month: "2-digit", day: "2-digit",
   });
   return fmt.format(new Date());
+}
+
+function heureParisActuelle() {
+  const fmt = new Intl.DateTimeFormat("fr-FR", { timeZone: "Europe/Paris", hour: "2-digit", hour12: false });
+  return parseInt(fmt.format(new Date()), 10);
 }
 
 async function supabase(chemin, options = {}) {
@@ -35,6 +40,13 @@ module.exports = async (req, res) => {
     return;
   }
   webpush.setVapidDetails("mailto:contact@example.com", clePub, clePrivee);
+
+  const [reglages] = await supabase(`parametres?id=eq.app&select=heure_rappel`);
+  const heureChoisie = reglages && reglages.heure_rappel != null ? reglages.heure_rappel : 8;
+  if (heureParisActuelle() !== heureChoisie) {
+    res.status(200).json({ envoyes: 0, raison: "pas encore l'heure choisie", heureChoisie });
+    return;
+  }
 
   const aujourdhui = dateParisAujourdhui();
   const [taches, abonnements] = await Promise.all([

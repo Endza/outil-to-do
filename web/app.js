@@ -106,6 +106,20 @@ const storeParametres = (() => {
       });
       if (!r.ok) throw new Error("Écriture Supabase échouée : " + r.status);
     },
+    async heureRappel() {
+      const r = await fetch(`${REST}?id=eq.app&select=heure_rappel`, { headers });
+      if (!r.ok) throw new Error("Lecture Supabase échouée : " + r.status);
+      const [ligne] = await r.json();
+      return ligne && ligne.heure_rappel != null ? ligne.heure_rappel : 8;
+    },
+    async definirHeureRappel(heure) {
+      const r = await fetch(`${REST}?on_conflict=id`, {
+        method: "POST",
+        headers: { ...headers, "Prefer": "resolution=merge-duplicates" },
+        body: JSON.stringify({ id: "app", heure_rappel: heure, date_maj: new Date().toISOString() }),
+      });
+      if (!r.ok) throw new Error("Écriture Supabase échouée : " + r.status);
+    },
   };
 })();
 
@@ -506,6 +520,27 @@ rendreListe();
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register("sw.js").catch(() => {});
 }
+
+/* ------------------------------ Heure des rappels (réglable) ------------------------------ */
+(async () => {
+  const select = $("#select-heure-rappel");
+  select.innerHTML = Array.from({ length: 24 }, (_, h) => `<option value="${h}">${h}h</option>`).join("");
+  try {
+    select.value = await storeParametres.heureRappel();
+  } catch (e) {
+    console.error(e);
+    return; // base injoignable : on n'affiche pas un réglage qu'on ne peut pas lire/écrire
+  }
+  select.hidden = false;
+  select.addEventListener("change", async () => {
+    try {
+      await storeParametres.definirHeureRappel(parseInt(select.value, 10));
+    } catch (e) {
+      console.error(e);
+      alert("Impossible d'enregistrer l'heure pour l'instant.");
+    }
+  });
+})();
 
 /* ------------------------------ RAPPELS (notifications push) ------------------------------ */
 (() => {
