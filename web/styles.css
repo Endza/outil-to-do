@@ -350,6 +350,43 @@ textarea:focus { outline: 2px solid var(--ink); outline-offset: 1px; }
   align-self: center;
   cursor: pointer;
 }
+
+/* Modale code PIN */
+.modal-fond {
+  position: fixed;
+  inset: 0;
+  background: rgba(20, 24, 31, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 20;
+}
+.modal-fond[hidden] { display: none; }
+.modal-carte {
+  background: var(--surface);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 20px;
+  width: 100%;
+  max-width: 300px;
+  animation: apparait 0.2s var(--ease);
+}
+.modal-titre { font-size: 15px; font-weight: 600; margin: 0 0 12px; text-align: center; }
+.modal-pin-champ {
+  width: 100%;
+  background: var(--bg);
+  color: var(--ink);
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  padding: 13px;
+  font-size: 22px;
+  letter-spacing: 0.3em;
+  text-align: center;
+  font-family: inherit;
+  margin-bottom: 14px;
+}
+.modal-pin-champ:focus { outline: 2px solid var(--ink); outline-offset: 1px; }
 .carnet-apercu { font-size: 13px; color: var(--muted); margin-top: 6px; line-height: 1.4; }
 .carte-edit textarea {
   margin-bottom: 10px;
