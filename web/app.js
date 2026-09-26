@@ -146,14 +146,7 @@ $("#btn-ajouter").addEventListener("click", async () => {
 });
 
 // --- Liste ---
-let filtreCourant = "tout";
 let editionId = null; // id de la tâche en cours d'édition sur place
-$$("#vue-taches .chip").forEach(chip => chip.addEventListener("click", () => {
-  $$("#vue-taches .chip").forEach(c => c.classList.remove("is-active"));
-  chip.classList.add("is-active");
-  filtreCourant = chip.dataset.filtre;
-  rendreListe();
-}));
 
 async function rendreListe() {
   let toutes;
@@ -168,11 +161,7 @@ async function rendreListe() {
     return;
   }
   $("#liste-vide").textContent = "Rien pour l'instant. Note une première tâche au-dessus.";
-  const filtrees = toutes.filter(t => {
-    if (filtreCourant === "urgent") return t.urgence === "urgent";
-    if (filtreCourant === "a_valider") return t.a_valider;
-    return true;
-  });
+  const filtrees = toutes;
   // à faire d'abord, puis terminées ; urgentes en tête de chaque groupe
   const ordonner = arr => arr.slice().sort((a, b) => {
     if ((a.statut === "fait") !== (b.statut === "fait")) return a.statut === "fait" ? 1 : -1;
