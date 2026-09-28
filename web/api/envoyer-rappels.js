@@ -1,6 +1,8 @@
-// Fonction serverless (Vercel Cron, déclenchée chaque heure) — envoie un rappel (notification
-// push) à l'heure choisie dans l'app, pour chaque tâche à faire dont l'échéance est aujourd'hui,
-// à chaque appareil abonné. Chaque tâche n'est notifiée qu'une seule fois (colonne "notifie").
+// Fonction serverless — envoie un rappel (notification push) à l'heure choisie dans l'app, pour
+// chaque tâche à faire dont l'échéance est aujourd'hui, à chaque appareil abonné. Chaque tâche
+// n'est notifiée qu'une seule fois (colonne "notifie").
+// Déclenchée par un service cron externe (ex. cron-job.org) qui appelle cet endpoint chaque heure
+// avec le secret : /api/envoyer-rappels?cle=CRON_SECRET (le plan Vercel gratuit interdit un cron horaire).
 
 const webpush = require("web-push");
 
@@ -33,6 +35,14 @@ async function supabase(chemin, options = {}) {
 }
 
 module.exports = async (req, res) => {
+  const secret = process.env.CRON_SECRET;
+  const fourni = (req.query && req.query.cle) ||
+    (req.headers.authorization === `Bearer ${secret}` ? secret : undefined);
+  if (!secret || fourni !== secret) {
+    res.status(401).json({ erreur: "Non autorisé." });
+    return;
+  }
+
   const clePub = process.env.VAPID_PUBLIC_KEY;
   const clePrivee = process.env.VAPID_PRIVATE_KEY;
   if (!clePub || !clePrivee) {
