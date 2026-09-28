@@ -6,4 +6,4 @@ export const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiO
 
 // Clé publique VAPID (rappels/notifications). Publique par conception (comme la clé anon) ;
 // sa contrepartie privée (VAPID_PRIVATE_KEY) reste côté serveur, en variable d'environnement Vercel.
-export const VAPID_PUBLIC_KEY = "BMkMTcQm0tfSN1iO_JaYMoA6yfw0_EyRf8-VmbPaM54CRgAAuwfD_sJa-YZRLU9sBmrIUWNVJ4n6b9UJSysOib0";
+export const VAPID_PUBLIC_KEY = "BDLkEiJgsBkgfO3cJSX7oCvd0anJLPkGoqua_EBQ0tKRW1S9xU9kH24WCCGvZvgwheM1hPulbGP1HgzYwUjiXnY";
