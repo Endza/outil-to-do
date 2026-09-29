@@ -377,14 +377,12 @@ function ligneCarnet(c) {
     return el;
   }
 
-  const apercu = (c.contenu || "").slice(0, 90);
   el.innerHTML = `
     <div class="tache-corps">
       <div class="tache-titre">${c.verrouille ? "🔒 " : ""}${escapeHtml(c.titre || "Note sans titre")}</div>
       <div class="tache-meta">
         ${c.a_valider ? '<span class="pill pill-valider">À vérifier</span>' : ''}
       </div>
-      ${apercu ? `<div class="carnet-apercu">${escapeHtml(apercu)}${(c.contenu||"").length > 90 ? "…" : ""}</div>` : ''}
     </div>`;
   el.addEventListener("click", () => ouvrirDetailCarnet(c));
   return el;
