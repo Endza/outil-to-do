@@ -5,6 +5,7 @@
 // avec le secret : /api/envoyer-rappels?cle=CRON_SECRET (le plan Vercel gratuit interdit un cron horaire).
 
 const webpush = require("web-push");
+const { tachesAEnvoyer } = require("./rappels-selection");
 
 const SUPABASE_URL = "https://bphiuavmlhxxcicwbzpg.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJwaGl1YXZtbGh4eGNpY3dienBnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg4NjI5MzcsImV4cCI6MjEwNDQzODkzN30.BAT9Mq7AlzLkvTzJbYH0FHjqvqCIOeuk8khn_u7BP7A";
@@ -52,17 +53,15 @@ module.exports = async (req, res) => {
   webpush.setVapidDetails("mailto:contact@example.com", clePub, clePrivee);
 
   const [reglages] = await supabase(`parametres?id=eq.app&select=heure_rappel`);
-  const heureChoisie = reglages && reglages.heure_rappel != null ? reglages.heure_rappel : 8;
-  if (heureParisActuelle() !== heureChoisie) {
-    res.status(200).json({ envoyes: 0, raison: "pas encore l'heure choisie", heureChoisie });
-    return;
-  }
+  const heureDefaut = reglages && reglages.heure_rappel != null ? reglages.heure_rappel : 8;
 
   const aujourdhui = dateParisAujourdhui();
-  const [taches, abonnements] = await Promise.all([
-    supabase(`taches?select=id,titre&statut=eq.a_faire&notifie=eq.false&echeance=eq.${aujourdhui}`),
+  const [tachesDuJour, abonnements] = await Promise.all([
+    supabase(`taches?select=id,titre,heure_rappel&statut=eq.a_faire&notifie=eq.false&echeance=eq.${aujourdhui}`),
     supabase(`abonnements_push?select=*`),
   ]);
+
+  const taches = tachesAEnvoyer(tachesDuJour, heureDefaut, heureParisActuelle());
 
   let envoyes = 0;
   const abonnementsExpires = new Set();

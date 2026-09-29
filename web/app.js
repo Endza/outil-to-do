@@ -161,6 +161,7 @@ $("#btn-ajouter").addEventListener("click", async () => {
 
 // --- Liste ---
 let editionId = null; // id de la tâche en cours d'édition sur place
+let heureRappelGlobale = 8; // heure globale par défaut, pour l'affichage "Par défaut (Xh)" par tâche
 
 async function rendreListe() {
   let toutes;
@@ -208,7 +209,6 @@ function ligneTache(t) {
     <button type="button" class="tache-corps" aria-label="Modifier la tâche">
       <div class="tache-titre">${escapeHtml(t.titre)}</div>
       <div class="tache-meta">
-        ${t.urgence==='urgent' ? '<span class="pill pill-urgent">Urgent</span>' : ''}
         ${t.echeance ? `<span class="pill pill-echeance">${formatDate(t.echeance)}</span>` : ''}
         ${t.a_valider ? '<span class="pill pill-valider">À vérifier</span>' : ''}
       </div>
@@ -234,12 +234,12 @@ function editeurTache(t) {
         <button type="button" data-val="pro" class="${t.domaine==='pro'?'is-active':''}">Pro</button>
         <button type="button" data-val="perso" class="${t.domaine==='perso'?'is-active':''}">Perso</button>
       </div>
-      <div class="segment seg-urgence" role="group" aria-label="Urgence">
-        <button type="button" data-val="urgent" class="${t.urgence==='urgent'?'is-active':''}">Urgent</button>
-        <button type="button" data-val="normal" class="${t.urgence==='normal'?'is-active':''}">Pas urgent</button>
-      </div>
       <div class="echeance-wrap">
         <input type="date" data-champ="echeance" value="${t.echeance||''}" aria-label="Échéance" />
+        <select data-champ="heure_rappel" class="select-heure-tache" aria-label="Heure du rappel" ${t.echeance ? '' : 'hidden'}>
+          <option value="">Par défaut (${heureRappelGlobale}h)</option>
+          ${Array.from({ length: 24 }, (_, h) => `<option value="${h}" ${t.heure_rappel === h ? 'selected' : ''}>${h}h</option>`).join('')}
+        </select>
       </div>
     </div>
     <div class="row-actions">
@@ -251,14 +251,16 @@ function editeurTache(t) {
   const maj = champs => store.modifier(t.id, { ...champs, a_valider: false });
 
   el.querySelector('[data-champ="titre"]').addEventListener("input", e => maj({ titre: e.target.value.trim() || t.titre }));
-  el.querySelector('[data-champ="echeance"]').addEventListener("input", e => maj({ echeance: e.target.value || null }));
+  const selHeure = el.querySelector('[data-champ="heure_rappel"]');
+  selHeure.addEventListener("change", e => maj({ heure_rappel: e.target.value === "" ? null : parseInt(e.target.value, 10) }));
+  el.querySelector('[data-champ="echeance"]').addEventListener("input", e => {
+    const val = e.target.value || null;
+    maj({ echeance: val });
+    selHeure.hidden = !val;
+  });
   el.querySelectorAll(".seg-domaine button").forEach(b => b.addEventListener("click", () => {
     maj({ domaine: b.dataset.val });
     el.querySelectorAll(".seg-domaine button").forEach(x => x.classList.toggle("is-active", x === b));
-  }));
-  el.querySelectorAll(".seg-urgence button").forEach(b => b.addEventListener("click", () => {
-    maj({ urgence: b.dataset.val });
-    el.querySelectorAll(".seg-urgence button").forEach(x => x.classList.toggle("is-active", x === b));
   }));
   el.querySelector('[data-action="ok"]').addEventListener("click", () => { editionId = null; rendreListe(); });
   el.querySelector('[data-action="supprimer"]').addEventListener("click", async () => {
@@ -515,7 +517,8 @@ if ("serviceWorker" in navigator) {
   const select = $("#select-heure-rappel");
   select.innerHTML = Array.from({ length: 24 }, (_, h) => `<option value="${h}">${h}h</option>`).join("");
   try {
-    select.value = await storeParametres.heureRappel();
+    heureRappelGlobale = await storeParametres.heureRappel();
+    select.value = heureRappelGlobale;
   } catch (e) {
     console.error(e);
     return; // base injoignable : on n'affiche pas un réglage qu'on ne peut pas lire/écrire
@@ -524,6 +527,7 @@ if ("serviceWorker" in navigator) {
   select.addEventListener("change", async () => {
     try {
       await storeParametres.definirHeureRappel(parseInt(select.value, 10));
+      heureRappelGlobale = parseInt(select.value, 10);
     } catch (e) {
       console.error(e);
       alert("Impossible d'enregistrer l'heure pour l'instant.");
