@@ -188,7 +188,6 @@ textarea:focus { outline: 2px solid var(--ink); outline-offset: 1px; }
 }
 .segment.seg-domaine button.is-active { background: var(--pro-bg); color: var(--pro); }
 .segment.seg-domaine button[data-val="perso"].is-active { background: var(--perso-bg); color: var(--perso); }
-.segment.seg-urgence button.is-active { background: var(--urgent-bg); color: var(--urgent); }
 
 .echeance-wrap { flex: 1; min-width: 148px; }
 
@@ -290,7 +289,6 @@ textarea:focus { outline: 2px solid var(--ink); outline-offset: 1px; }
 .tache-titre { font-size: 15px; line-height: 1.4; color: var(--ink); word-wrap: break-word; }
 .tache-meta { display: flex; gap: 7px; margin-top: 7px; flex-wrap: wrap; align-items: center; }
 .pill { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
-.pill-urgent { background: var(--urgent-bg); color: var(--urgent); }
 .pill-echeance { background: #eef1f5; color: var(--muted); }
 .pill-valider { background: var(--valider-bg); color: var(--valider); }
 
