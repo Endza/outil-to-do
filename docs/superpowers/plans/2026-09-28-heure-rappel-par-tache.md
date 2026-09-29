@@ -306,6 +306,67 @@ git commit -m "Tests : suivi heure de rappel par tâche"
 
 ---
 
+### Task 6: Retirer « Urgent / Pas urgent » de l'interface
+
+Portée : interface uniquement. On retire le bouton dans l'éditeur et la pastille « Urgent ».
+On NE touche PAS au tri (`app.js:182`) ni au tri IA (`web/api/capture.js`) ni à la colonne en base.
+
+**Files:**
+- Modify: `web/app.js`
+- Modify: `web/styles.css`
+
+- [ ] **Step 1: Retirer la pastille « Urgent » sur les tâches**
+
+Dans `ligneTache`, supprimer la ligne :
+```js
+        ${t.urgence==='urgent' ? '<span class="pill pill-urgent">Urgent</span>' : ''}
+```
+
+- [ ] **Step 2: Retirer le groupe de boutons dans l'éditeur**
+
+Dans `editeurTache`, supprimer le bloc :
+```js
+      <div class="segment seg-urgence" role="group" aria-label="Urgence">
+        <button type="button" data-val="urgent" class="${t.urgence==='urgent'?'is-active':''}">Urgent</button>
+        <button type="button" data-val="normal" class="${t.urgence==='normal'?'is-active':''}">Pas urgent</button>
+      </div>
+```
+
+- [ ] **Step 3: Retirer le gestionnaire de clic devenu orphelin**
+
+Dans `editeurTache`, supprimer le bloc :
+```js
+  el.querySelectorAll(".seg-urgence button").forEach(b => b.addEventListener("click", () => {
+    maj({ urgence: b.dataset.val });
+    el.querySelectorAll(".seg-urgence button").forEach(x => x.classList.toggle("is-active", x === b));
+  }));
+```
+
+- [ ] **Step 4: Retirer les styles CSS devenus orphelins**
+
+Dans `web/styles.css`, supprimer les deux règles :
+```css
+.segment.seg-urgence button.is-active { background: var(--urgent-bg); color: var(--urgent); }
+```
+```css
+.pill-urgent { background: var(--urgent-bg); color: var(--urgent); }
+```
+(Garder la variable `--urgent` : encore utilisée par `.btn-danger` et d'autres règles.)
+
+- [ ] **Step 5: Vérifier la syntaxe**
+
+Run: `node --check web/app.js`
+Expected: aucune sortie, code de sortie 0
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add web/app.js web/styles.css
+git commit -m "App : retire Urgent/Pas urgent de l'interface (tri et IA inchangés)"
+```
+
+---
+
 ## Self-Review
 
 **Spec coverage :**
